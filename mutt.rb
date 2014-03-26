@@ -37,6 +37,8 @@ class Mutt < Formula
   option "with-ignore-thread-patch", "Apply ignore-thread patch"
   option "with-pgp-verbose-mime-patch", "Apply PGP verbose mime patch"
   option "with-confirm-attachment-patch", "Apply confirm attachment patch"
+  option "with-sidebar-patch", "Apply sidebar patch"
+  option "with-gmail-server-search-patch", "Apply gmail server search patch"
 
   depends_on 'openssl'
   depends_on 'tokyo-cabinet'
@@ -64,6 +66,16 @@ class Mutt < Formula
     url "https://gist.github.com/tlvince/5741641/raw/c926ca307dc97727c2bd88a84dcb0d7ac3bb4bf5/mutt-attach.patch"
     sha1 "94da52d50508d8951aa78ca4b073023414866be1"
   end if build.with? "confirm-attachment-patch"
+
+  patch do
+    url "https://raw.github.com/nedos/mutt-sidebar-patch/master/mutt-sidebar.patch"
+    sha1 "1e151d4ff3ce83d635cf794acf0c781e1b748ff1"
+  end if build.with? "sidebar-patch"
+
+  patch do
+    url "http://people.spodhuis.org/phil.pennock/software/mutt-patches/patch-mutt-gmailcustomsearch.v1"
+    sha1 "851051cd37778d71a86510a888d4572475ed269d"
+  end if build.with? "gmail-server-search-patch"
 
   def install
     args = ["--disable-dependency-tracking",
