@@ -72,7 +72,7 @@ class Mutt < Formula
     sha1 "1e151d4ff3ce83d635cf794acf0c781e1b748ff1"
   end if build.with? "sidebar-patch"
 
-  patch do
+  patch :p0 do
     url "http://people.spodhuis.org/phil.pennock/software/mutt-patches/patch-mutt-gmailcustomsearch.v1"
     sha1 "851051cd37778d71a86510a888d4572475ed269d"
   end if build.with? "gmail-server-search-patch"
