@@ -14,8 +14,9 @@ The following patches were added:
 - [Gmail Labels](http://marc.info/?l=mutt-dev&m=132782593823479&w=2):
   enable with `--with-gmail-labels-patch`. I've pulled this out of the mutt dev
   mailing list. The original patch was created by Todd Hoffmann. Add `%?y?(%y)?`
-  in your `index_format` to conditionally display the associated labels. Note
-  that Gmail Labels only work when directly connected to Gmail via IMAP.
+  in your `index_format` to conditionally display the associated labels and make
+  sure to disable `header_cache`. Note that Gmail Labels only work when directly
+  connected to Gmail via IMAP.
 
 ## How to install
 
