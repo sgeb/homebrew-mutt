@@ -39,6 +39,7 @@ class Mutt < Formula
   option "with-confirm-attachment-patch", "Apply confirm attachment patch"
   option "with-sidebar-patch", "Apply sidebar patch"
   option "with-gmail-server-search-patch", "Apply gmail server search patch"
+  option "with-gmail-labels-patch", "Apply gmail labels patch"
 
   depends_on 'openssl'
   depends_on 'tokyo-cabinet'
@@ -76,6 +77,11 @@ class Mutt < Formula
     url "https://github.com/sgeb/homebrew-mutt/raw/c68c72bf2824b571b56c63aee597a43fb12b7705/patches/patch-mutt-gmailcustomsearch.v1.patch"
     sha1 "851051cd37778d71a86510a888d4572475ed269d"
   end if build.with? "gmail-server-search-patch"
+
+  patch do
+    url "https://github.com/sgeb/homebrew-mutt/raw/8d7aeb177e9601b6493b7b782c140693f4c4ef62/patches/x-gm-labels.patch"
+    sha1 "870321fc1f76b45f5f27de6695e51c55ec37e213"
+  end if build.with? "gmail-labels-patch"
 
   def install
     args = ["--disable-dependency-tracking",
