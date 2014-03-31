@@ -8,7 +8,14 @@ The following patches were added:
   `--with-sidebar-patch`
 
 - [Gmail Server Search](http://permalink.gmane.org/gmane.mail.mutt.devel/19624):
-  enable with `--with-gmail-server-search-patch`
+  enable with `--with-gmail-server-search-patch`. Note that Gmail Server Search
+  only works when directly connected to Gmail via IMAP.
+
+- [Gmail Labels](http://marc.info/?l=mutt-dev&m=132782593823479&w=2):
+  enable with `--with-gmail-labels-patch`. I've pulled this out of the mutt dev
+  mailing list. The original patch was created by Todd Hoffmann. Add `%?y?(%y)?`
+  in your `index_format` to conditionally display the associated labels. Note
+  that Gmail Labels only work when directly connected to Gmail via IMAP.
 
 ## How to install
 
