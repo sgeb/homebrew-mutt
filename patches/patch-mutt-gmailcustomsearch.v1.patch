@@ -1,0 +1,188 @@
+Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be used from mutt with =/
+
+--- PATCHES
++++ PATCHES
+@@ -0,0 +1 @@
++pp.gmailcustomsearch
+--- doc/manual.xml.head
++++ doc/manual.xml.head
+@@ -5002,6 +5002,7 @@ shows several ways to select messages.
+ <row><entry>~X [<emphasis>MIN</emphasis>]-[<emphasis>MAX</emphasis>]</entry><entry>messages with <emphasis>MIN</emphasis> to <emphasis>MAX</emphasis> attachments *)</entry></row>
+ <row><entry>~y <emphasis>EXPR</emphasis></entry><entry>messages which contain <emphasis>EXPR</emphasis> in the <quote>X-Label</quote> field</entry></row>
+ <row><entry>~z [<emphasis>MIN</emphasis>]-[<emphasis>MAX</emphasis>]</entry><entry>messages with a size in the range <emphasis>MIN</emphasis> to <emphasis>MAX</emphasis> *) **)</entry></row>
++<row><entry>=/ <emphasis>STRING</emphasis></entry><entry>IMAP custom server-side search for <emphasis>STRING</emphasis>. Currently only defined for Gmail.</entry></row>
+ <row><entry>~=</entry><entry>duplicated messages (see <link linkend="duplicate-threads">$duplicate_threads</link>)</entry></row>
+ <row><entry>~$</entry><entry>unreferenced messages (requires threaded view)</entry></row>
+ <row><entry>~(<emphasis>PATTERN</emphasis>)</entry><entry>messages in threads
+--- imap/command.c
++++ imap/command.c
+@@ -66,10 +66,22 @@ static char *Capabilities[] = {
+   "LOGINDISABLED",
+   "IDLE",
+   "SASL-IR",
++  "X-GM-EXT1",
+ 
+   NULL
+ };
+ 
++/* Gmail document one string but use another.  Support both. */
++struct Capability_Alias {
++  char *name;
++  unsigned int value;
++};
++static struct Capability_Alias Capability_Aliases[] = {
++  { "X-GM-EXT-1", X_GM_EXT1 },
++  { NULL, 0 }
++};
++
++
+ /* imap_cmd_start: Given an IMAP command, send it to the server.
+  *   If cmdstr is NULL, sends queued commands. */
+ int imap_cmd_start (IMAP_DATA* idata, const char* cmdstr)
+@@ -556,7 +568,7 @@ static int cmd_handle_untagged (IMAP_DAT
+  *   response */
+ static void cmd_parse_capability (IMAP_DATA* idata, char* s)
+ {
+-  int x;
++  int x, found;
+   char* bracket;
+ 
+   dprint (3, (debugfile, "Handling CAPABILITY\n"));
+@@ -571,12 +583,25 @@ static void cmd_parse_capability (IMAP_D
+ 
+   while (*s)
+   {
++    found = 0;
+     for (x = 0; x < CAPMAX; x++)
+       if (imap_wordcasecmp(Capabilities[x], s) == 0)
+       {
+ 	mutt_bit_set (idata->capabilities, x);
++	dprint (4, (debugfile, " Found capability \"%s\": %d\n", Capabilities[x], x));
++	found = 1;
+ 	break;
+       }
++    if (!found)
++      for (x = 0; Capability_Aliases[x].name != NULL; x++)
++	if (imap_wordcasecmp(Capability_Aliases[x].name, s) == 0)
++	{
++	  mutt_bit_set (idata->capabilities, Capability_Aliases[x].value);
++	  dprint (4, (debugfile, " Found capability \"%s\": %d\n",
++		      Capability_Aliases[x].name, Capability_Aliases[x].value));
++	  found = 1;
++	  break;
++	}
+     s = imap_next_word (s);
+   }
+ }
+--- imap/imap.c
++++ imap/imap.c
+@@ -1678,6 +1678,9 @@ static int do_search (const pattern_t* s
+         if (pat->stringmatch)
+           rc++;
+         break;
++      case M_SERVERSEARCH:
++        rc++;
++        break;
+       default:
+         if (pat->child && do_search (pat->child, 1))
+           rc++;
+@@ -1693,7 +1696,7 @@ static int do_search (const pattern_t* s
+ /* convert mutt pattern_t to IMAP SEARCH command containing only elements
+  * that require full-text search (mutt already has what it needs for most
+  * match types, and does a better job (eg server doesn't support regexps). */
+-static int imap_compile_search (const pattern_t* pat, BUFFER* buf)
++static int imap_compile_search (CONTEXT* ctx, const pattern_t* pat, BUFFER* buf)
+ {
+   if (! do_search (pat, 0))
+     return 0;
+@@ -1719,7 +1722,7 @@ static int imap_compile_search (const pa
+             mutt_buffer_addstr (buf, "OR ");
+           clauses--;
+ 
+-          if (imap_compile_search (clause, buf) < 0)
++          if (imap_compile_search (ctx, clause, buf) < 0)
+             return -1;
+ 
+           if (clauses)
+@@ -1770,6 +1773,19 @@ static int imap_compile_search (const pa
+         imap_quote_string (term, sizeof (term), pat->p.str);
+         mutt_buffer_addstr (buf, term);
+         break;
++      case M_SERVERSEARCH:
++        {
++          IMAP_DATA* idata = (IMAP_DATA*)ctx->data;
++          if (!mutt_bit_isset (idata->capabilities, X_GM_EXT1))
++          {
++            mutt_error(_("Server-side custom search not supported: %s"), pat->p.str);
++            return -1;
++          }
++        }
++        mutt_buffer_addstr (buf, "X-GM-RAW ");
++        imap_quote_string (term, sizeof (term), pat->p.str);
++        mutt_buffer_addstr (buf, term);
++        break;
+     }
+   }
+ 
+@@ -1790,7 +1806,7 @@ int imap_search (CONTEXT* ctx, const pat
+ 
+   memset (&buf, 0, sizeof (buf));
+   mutt_buffer_addstr (&buf, "UID SEARCH ");
+-  if (imap_compile_search (pat, &buf) < 0)
++  if (imap_compile_search (ctx, pat, &buf) < 0)
+   {
+     FREE (&buf.data);
+     return -1;
+--- imap/imap_private.h
++++ imap/imap_private.h
+@@ -114,6 +114,7 @@ enum
+   LOGINDISABLED,		/*           LOGINDISABLED */
+   IDLE,                         /* RFC 2177: IDLE */
+   SASL_IR,                      /* SASL initial response draft */
++  X_GM_EXT1,			/* http://code.google.com/apis/gmail/imap/ */
+ 
+   CAPMAX
+ };
+--- mutt.h
++++ mutt.h
+@@ -226,6 +226,7 @@ enum
+   M_CRYPT_ENCRYPT,
+   M_PGP_KEY,
+   M_XLABEL,
++  M_SERVERSEARCH,
+   M_MIMEATTACH,
+   
+   /* Options for Mailcap lookup */
+--- pattern.c
++++ pattern.c
+@@ -98,6 +98,7 @@ Flags[] =
+   { 'z', M_SIZE,		0,		eat_range },
+   { '=', M_DUPLICATED,		0,		NULL },
+   { '$', M_UNREFERENCED,	0,		NULL },
++  { '/', M_SERVERSEARCH,	0,		eat_regexp },
+   { 0,   0,			0,		NULL }
+ };
+ 
+@@ -1142,6 +1143,22 @@ mutt_pattern_exec (struct pattern_t *pat
+ 	return (h->matched);
+ #endif
+       return (pat->not ^ msg_search (ctx, pat, h->msgno));
++    case M_SERVERSEARCH:
++#ifdef USE_IMAP
++      if (!ctx)
++	return 0;
++      if (ctx->magic == M_IMAP)
++      {
++	if (pat->stringmatch)
++	  return (h->matched);
++	return 0;
++      }
++      mutt_error (_("error: server custom search only supported with IMAP."));
++      return 0;
++#else
++      mutt_error (_("error: server custom search only supported with IMAP."));
++      return (-1);
++#endif
+     case M_SENDER:
+       return (pat->not ^ match_adrlist (pat, flags & M_MATCH_FULL_ADDRESS, 1,
+                                         h->env->sender));
