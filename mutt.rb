@@ -68,12 +68,12 @@ class Mutt < Formula
   end if build.with? "confirm-attachment-patch"
 
   patch do
-    url "https://raw.github.com/nedos/mutt-sidebar-patch/master/mutt-sidebar.patch"
+    url "https://github.com/sgeb/homebrew-mutt/raw/c68c72bf2824b571b56c63aee597a43fb12b7705/patches/mutt-sidebar.patch"
     sha1 "1e151d4ff3ce83d635cf794acf0c781e1b748ff1"
   end if build.with? "sidebar-patch"
 
   patch :p0 do
-    url "http://people.spodhuis.org/phil.pennock/software/mutt-patches/patch-mutt-gmailcustomsearch.v1"
+    url "https://github.com/sgeb/homebrew-mutt/raw/c68c72bf2824b571b56c63aee597a43fb12b7705/patches/patch-mutt-gmailcustomsearch.v1.patch"
     sha1 "851051cd37778d71a86510a888d4572475ed269d"
   end if build.with? "gmail-server-search-patch"
 
