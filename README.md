@@ -11,7 +11,7 @@ The following patches were added:
   enable with `--with-gmail-server-search-patch`. Note that Gmail Server Search
   only works when directly connected to Gmail via IMAP.
 
-- [Gmail Labels](http://marc.info/?l=mutt-dev&m=132782593823479&w=2):
+- [Gmail Labels](https://www.mail-archive.com/mutt-dev@mutt.org/msg07593.html):
   enable with `--with-gmail-labels-patch`. I've pulled this out of the mutt dev
   mailing list. The original patch was created by Todd Hoffmann. Add `%?y?(%y)?`
   in your `index_format` to conditionally display the associated labels and make
@@ -36,7 +36,8 @@ Then proceed with installation based on custom formula:
 > brew options sgeb/mutt/mutt
 # List of available options
 
-> brew install sgeb/mutt/mutt --with-sidebar-patch \
-  --with-gmail-server-search-patch --with-trash-patch
+> brew install sgeb/mutt/mutt --with-trash-patch \
+  --with-sidebar-patch --with-gmail-server-search-patch \
+  --with-trash-patch --with-gmail-labels-patch
 # Compile and install customized mutt
 ```
