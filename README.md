@@ -19,9 +19,9 @@ The following patches were added:
   enable with `--with-gmail-labels-patch`. Originally based on [a
   patch](https://www.mail-archive.com/mutt-dev@mutt.org/msg07593.html) by Todd
   Hoffmann. Add `%?y?(%y)?` to your `index_format` to conditionally display the
-  associated labels and make sure to disable `header_cache`. Label 'important'
-  is stripped from the list of labels. Note that Gmail Labels only work when
-  directly connected to Gmail via IMAP.
+  associated labels and make sure to disable `header_cache`. Labels 'Important'
+  and 'Starred' are stripped from the list of labels. Note that Gmail Labels
+  only work when directly connected to Gmail via IMAP.
 
 ## How to install
 
