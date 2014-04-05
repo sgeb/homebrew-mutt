@@ -1,6 +1,6 @@
 diff -Naur mutt-1.5.23.orig/imap/message.c mutt-1.5.23/imap/message.c
 --- mutt-1.5.23.orig/imap/message.c	2014-03-12 13:03:45.000000000 -0300
-+++ mutt-1.5.23/imap/message.c	2014-04-05 14:58:12.000000000 -0300
++++ mutt-1.5.23/imap/message.c	2014-04-05 15:26:27.000000000 -0300
 @@ -240,7 +240,7 @@
        char *cmd;
  
@@ -18,7 +18,7 @@ diff -Naur mutt-1.5.23.orig/imap/message.c mutt-1.5.23/imap/message.c
        ctx->size += h.content_length;
  
  #if USE_HCACHE
-@@ -1139,6 +1140,39 @@
+@@ -1139,6 +1140,44 @@
    {
      SKIPWS (s);
  
@@ -35,6 +35,11 @@ diff -Naur mutt-1.5.23.orig/imap/message.c mutt-1.5.23/imap/message.c
 +            else if (ascii_strncasecmp ("\"\\\\Important\"", s, 13) == 0)
 +            {
 +              s += 13;
++              SKIPWS (s);
++            }
++            else if (ascii_strncasecmp ("\"\\\\Starred\"", s, 11) == 0)
++            {
++              s += 11;
 +              SKIPWS (s);
 +            }
 +            else if (ascii_strncasecmp ("\"\\\\", s, 3) == 0)
@@ -60,7 +65,7 @@ diff -Naur mutt-1.5.23.orig/imap/message.c mutt-1.5.23/imap/message.c
        if ((s = msg_parse_flags (h, s)) == NULL)
 diff -Naur mutt-1.5.23.orig/imap/message.h mutt-1.5.23/imap/message.h
 --- mutt-1.5.23.orig/imap/message.h	2014-03-12 13:03:45.000000000 -0300
-+++ mutt-1.5.23/imap/message.h	2014-04-05 13:10:13.000000000 -0300
++++ mutt-1.5.23/imap/message.h	2014-04-05 15:25:50.000000000 -0300
 @@ -37,6 +37,8 @@
    unsigned int parsed : 1;
  
