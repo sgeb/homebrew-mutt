@@ -79,8 +79,8 @@ class Mutt < Formula
   end if build.with? "gmail-server-search-patch"
 
   patch do
-    url "https://github.com/sgeb/homebrew-mutt/raw/8d7aeb177e9601b6493b7b782c140693f4c4ef62/patches/x-gm-labels.patch"
-    sha1 "870321fc1f76b45f5f27de6695e51c55ec37e213"
+    url "https://github.com/sgeb/homebrew-mutt/raw/5e6e9dc0edadaa696fad8062d802c3a46793f5de/patches/mutt-1.5.23-gmail-labels.sgeb.v1.patch"
+    sha1 "ef13318f00e0f3fb4e454c81f297fa4330212b4d"
   end if build.with? "gmail-labels-patch"
 
   def install

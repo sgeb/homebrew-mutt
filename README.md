@@ -4,19 +4,24 @@ Convenience repo with my customizations to the mutt formula for homebrew.
 
 The following patches were added:
 
-- [Sidebar](http://www.lunar-linux.org/mutt-sidebar/): enable with
-  `--with-sidebar-patch`
+- [Sidebar](https://github.com/sgeb/homebrew-mutt/blob/master/patches/mutt-sidebar.patch):
+  enable with `--with-sidebar-patch`.
+  [[Source](http://www.lunar-linux.org/mutt-sidebar/)]
 
-- [Gmail Server Search](http://permalink.gmane.org/gmane.mail.mutt.devel/19624):
+- [Gmail Server
+  Search](https://github.com/sgeb/homebrew-mutt/blob/master/patches/patch-mutt-gmailcustomsearch.v1.patch):
   enable with `--with-gmail-server-search-patch`. Note that Gmail Server Search
   only works when directly connected to Gmail via IMAP.
+  [[Source](http://permalink.gmane.org/gmane.mail.mutt.devel/19624)]
 
-- [Gmail Labels](https://www.mail-archive.com/mutt-dev@mutt.org/msg07593.html):
-  enable with `--with-gmail-labels-patch`. I've pulled this out of the mutt dev
-  mailing list. The original patch was created by Todd Hoffmann. Add `%?y?(%y)?`
-  in your `index_format` to conditionally display the associated labels and make
-  sure to disable `header_cache`. Note that Gmail Labels only work when directly
-  connected to Gmail via IMAP.
+- [Gmail
+  Labels](https://github.com/sgeb/homebrew-mutt/blob/master/patches/mutt-1.5.23-gmail-labels.sgeb.v1.patch):
+  enable with `--with-gmail-labels-patch`. Originally based on [a
+  patch](https://www.mail-archive.com/mutt-dev@mutt.org/msg07593.html) by Todd
+  Hoffmann. Add `%?y?(%y)?` to your `index_format` to conditionally display the
+  associated labels and make sure to disable `header_cache`. Label 'important'
+  is stripped from the list of labels. Note that Gmail Labels only work when
+  directly connected to Gmail via IMAP.
 
 ## How to install
 
