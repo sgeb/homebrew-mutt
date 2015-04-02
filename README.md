@@ -43,6 +43,6 @@ Then proceed with installation based on custom formula:
 
 > brew install sgeb/mutt/mutt --with-trash-patch \
   --with-sidebar-patch --with-gmail-server-search-patch \
-  --with-trash-patch --with-gmail-labels-patch
+  --with-gmail-labels-patch
 # Compile and install customized mutt
 ```
