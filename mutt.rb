@@ -41,8 +41,8 @@ class Mutt < Formula
   depends_on 'gpgme' => :optional
 
   patch do
-    url "http://patch-tracker.debian.org/patch/series/dl/mutt/1.5.21-6.2+deb7u1/features/trash-folder"
-    sha1 "6c8ce66021d89a063e67975a3730215c20cf2859"
+    url "ftp://ftp.openbsd.org/pub/OpenBSD/distfiles/mutt/trashfolder-1.5.22.diff0.gz"
+    sha1 "c597566c26e270b99c6f57e046512a663d2f415e"
   end if build.with? "trash-patch"
 
   # original source for this went missing, patch sourced from Arch at
