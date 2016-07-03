@@ -1,0 +1,52 @@
+diff -Naur mutt-1.6.1-orig/PATCHES mutt-1.6.1-patched/PATCHES
+--- mutt-1.6.1-orig/PATCHES	2016-04-30 23:07:23.000000000 +0200
++++ mutt-1.6.1-patched/PATCHES	2016-07-03 15:23:26.000000000 +0200
+@@ -0,0 +1 @@
++patch-1.5.11.vk.pgp_verbose_mime
+diff -Naur mutt-1.6.1-orig/globals.h mutt-1.6.1-patched/globals.h
+--- mutt-1.6.1-orig/globals.h	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/globals.h	2016-07-03 15:22:28.000000000 +0200
+@@ -235,6 +235,8 @@
+ WHERE char *PgpSignAs;
+ WHERE short PgpTimeout;
+ WHERE char *PgpEntryFormat;
++WHERE char *PgpMimeSignatureFilename;
++WHERE char *PgpMimeSignatureDescription;
+ WHERE char *PgpClearSignCommand;
+ WHERE char *PgpDecodeCommand;
+ WHERE char *PgpVerifyCommand;
+diff -Naur mutt-1.6.1-orig/init.h mutt-1.6.1-patched/init.h
+--- mutt-1.6.1-orig/init.h	2016-04-30 23:14:03.000000000 +0200
++++ mutt-1.6.1-patched/init.h	2016-07-03 15:22:28.000000000 +0200
+@@ -2727,6 +2727,18 @@
+   ** a line quoted text if it also matches $$smileys. This mostly
+   ** happens at the beginning of a line.
+   */
++  { "pgp_mime_signature_filename", DT_STR, R_NONE, UL &PgpMimeSignatureFilename, UL "signature.asc"},
++  /*
++  ** .pp
++  ** This option sets the filename used for signature parts in PGP/MIME
++  ** signed messages.
++  */
++  { "pgp_mime_signature_description", DT_STR, R_NONE, UL &PgpMimeSignatureDescription, UL "Digital signature"},
++  /*
++  ** .pp
++  ** This option sets the Content-Description used for signature parts in
++  ** PGP/MIME signed messages.
++  */
+ 
+ 
+ 
+diff -Naur mutt-1.6.1-orig/pgp.c mutt-1.6.1-patched/pgp.c
+--- mutt-1.6.1-orig/pgp.c	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/pgp.c	2016-07-03 15:22:28.000000000 +0200
+@@ -1261,7 +1261,8 @@
+   t->disposition = DISPNONE;
+   t->encoding = ENC7BIT;
+   t->unlink = 1; /* ok to remove this file after sending. */
+-  mutt_set_parameter ("name", "signature.asc", &t->parameter);
++  mutt_set_parameter ("name", PgpMimeSignatureFilename, &t->parameter);
++  t->description = safe_strdup (PgpMimeSignatureDescription);
+ 
+   return (a);
+ }

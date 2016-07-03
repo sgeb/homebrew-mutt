@@ -1,12 +1,14 @@
 Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be used from mutt with =/
 
---- PATCHES
-+++ PATCHES
+diff -Naur mutt-1.6.1-orig/PATCHES mutt-1.6.1-patched/PATCHES
+--- mutt-1.6.1-orig/PATCHES	2016-04-30 23:07:23.000000000 +0200
++++ mutt-1.6.1-patched/PATCHES	2016-07-03 15:46:36.000000000 +0200
 @@ -0,0 +1 @@
 +pp.gmailcustomsearch
---- doc/manual.xml.head
-+++ doc/manual.xml.head
-@@ -5002,6 +5002,7 @@ shows several ways to select messages.
+diff -Naur mutt-1.6.1-orig/doc/manual.xml.head mutt-1.6.1-patched/doc/manual.xml.head
+--- mutt-1.6.1-orig/doc/manual.xml.head	2016-04-30 23:07:23.000000000 +0200
++++ mutt-1.6.1-patched/doc/manual.xml.head	2016-07-03 15:46:36.000000000 +0200
+@@ -5128,6 +5128,7 @@
  <row><entry>~X [<emphasis>MIN</emphasis>]-[<emphasis>MAX</emphasis>]</entry><entry>messages with <emphasis>MIN</emphasis> to <emphasis>MAX</emphasis> attachments *)</entry></row>
  <row><entry>~y <emphasis>EXPR</emphasis></entry><entry>messages which contain <emphasis>EXPR</emphasis> in the <quote>X-Label</quote> field</entry></row>
  <row><entry>~z [<emphasis>MIN</emphasis>]-[<emphasis>MAX</emphasis>]</entry><entry>messages with a size in the range <emphasis>MIN</emphasis> to <emphasis>MAX</emphasis> *) **)</entry></row>
@@ -14,12 +16,13 @@ Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be use
  <row><entry>~=</entry><entry>duplicated messages (see <link linkend="duplicate-threads">$duplicate_threads</link>)</entry></row>
  <row><entry>~$</entry><entry>unreferenced messages (requires threaded view)</entry></row>
  <row><entry>~(<emphasis>PATTERN</emphasis>)</entry><entry>messages in threads
---- imap/command.c
-+++ imap/command.c
-@@ -66,10 +66,22 @@ static char *Capabilities[] = {
-   "LOGINDISABLED",
+diff -Naur mutt-1.6.1-orig/imap/command.c mutt-1.6.1-patched/imap/command.c
+--- mutt-1.6.1-orig/imap/command.c	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/imap/command.c	2016-07-03 15:51:24.000000000 +0200
+@@ -67,10 +67,21 @@
    "IDLE",
    "SASL-IR",
+   "ENABLE",
 +  "X-GM-EXT1",
  
    NULL
@@ -35,11 +38,10 @@ Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be use
 +  { NULL, 0 }
 +};
 +
-+
  /* imap_cmd_start: Given an IMAP command, send it to the server.
   *   If cmdstr is NULL, sends queued commands. */
  int imap_cmd_start (IMAP_DATA* idata, const char* cmdstr)
-@@ -556,7 +568,7 @@ static int cmd_handle_untagged (IMAP_DAT
+@@ -559,7 +570,7 @@
   *   response */
  static void cmd_parse_capability (IMAP_DATA* idata, char* s)
  {
@@ -48,7 +50,7 @@ Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be use
    char* bracket;
  
    dprint (3, (debugfile, "Handling CAPABILITY\n"));
-@@ -571,12 +583,25 @@ static void cmd_parse_capability (IMAP_D
+@@ -574,12 +585,25 @@
  
    while (*s)
    {
@@ -74,9 +76,10 @@ Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be use
      s = imap_next_word (s);
    }
  }
---- imap/imap.c
-+++ imap/imap.c
-@@ -1678,6 +1678,9 @@ static int do_search (const pattern_t* s
+diff -Naur mutt-1.6.1-orig/imap/imap.c mutt-1.6.1-patched/imap/imap.c
+--- mutt-1.6.1-orig/imap/imap.c	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/imap/imap.c	2016-07-03 15:46:36.000000000 +0200
+@@ -1698,6 +1698,9 @@
          if (pat->stringmatch)
            rc++;
          break;
@@ -86,7 +89,7 @@ Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be use
        default:
          if (pat->child && do_search (pat->child, 1))
            rc++;
-@@ -1693,7 +1696,7 @@ static int do_search (const pattern_t* s
+@@ -1713,7 +1716,7 @@
  /* convert mutt pattern_t to IMAP SEARCH command containing only elements
   * that require full-text search (mutt already has what it needs for most
   * match types, and does a better job (eg server doesn't support regexps). */
@@ -95,7 +98,7 @@ Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be use
  {
    if (! do_search (pat, 0))
      return 0;
-@@ -1719,7 +1722,7 @@ static int imap_compile_search (const pa
+@@ -1739,7 +1742,7 @@
              mutt_buffer_addstr (buf, "OR ");
            clauses--;
  
@@ -104,7 +107,7 @@ Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be use
              return -1;
  
            if (clauses)
-@@ -1770,6 +1773,19 @@ static int imap_compile_search (const pa
+@@ -1790,6 +1793,19 @@
          imap_quote_string (term, sizeof (term), pat->p.str);
          mutt_buffer_addstr (buf, term);
          break;
@@ -124,28 +127,30 @@ Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be use
      }
    }
  
-@@ -1790,7 +1806,7 @@ int imap_search (CONTEXT* ctx, const pat
+@@ -1810,7 +1826,7 @@
  
-   memset (&buf, 0, sizeof (buf));
+   mutt_buffer_init (&buf);
    mutt_buffer_addstr (&buf, "UID SEARCH ");
 -  if (imap_compile_search (pat, &buf) < 0)
 +  if (imap_compile_search (ctx, pat, &buf) < 0)
    {
      FREE (&buf.data);
      return -1;
---- imap/imap_private.h
-+++ imap/imap_private.h
-@@ -114,6 +114,7 @@ enum
-   LOGINDISABLED,		/*           LOGINDISABLED */
+diff -Naur mutt-1.6.1-orig/imap/imap_private.h mutt-1.6.1-patched/imap/imap_private.h
+--- mutt-1.6.1-orig/imap/imap_private.h	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/imap/imap_private.h	2016-07-03 15:52:56.000000000 +0200
+@@ -116,6 +116,7 @@
    IDLE,                         /* RFC 2177: IDLE */
    SASL_IR,                      /* SASL initial response draft */
+   ENABLE,                       /* RFC 5161 */
 +  X_GM_EXT1,			/* http://code.google.com/apis/gmail/imap/ */
  
    CAPMAX
  };
---- mutt.h
-+++ mutt.h
-@@ -226,6 +226,7 @@ enum
+diff -Naur mutt-1.6.1-orig/mutt.h mutt-1.6.1-patched/mutt.h
+--- mutt-1.6.1-orig/mutt.h	2016-04-30 23:07:23.000000000 +0200
++++ mutt-1.6.1-patched/mutt.h	2016-07-03 15:46:36.000000000 +0200
+@@ -223,6 +223,7 @@
    M_CRYPT_ENCRYPT,
    M_PGP_KEY,
    M_XLABEL,
@@ -153,9 +158,10 @@ Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be use
    M_MIMEATTACH,
    
    /* Options for Mailcap lookup */
---- pattern.c
-+++ pattern.c
-@@ -98,6 +98,7 @@ Flags[] =
+diff -Naur mutt-1.6.1-orig/pattern.c mutt-1.6.1-patched/pattern.c
+--- mutt-1.6.1-orig/pattern.c	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/pattern.c	2016-07-03 15:46:36.000000000 +0200
+@@ -98,6 +98,7 @@
    { 'z', M_SIZE,		0,		eat_range },
    { '=', M_DUPLICATED,		0,		NULL },
    { '$', M_UNREFERENCED,	0,		NULL },
@@ -163,7 +169,7 @@ Support Gmail's X-GM-RAW server-side search, letting Gmail search filters be use
    { 0,   0,			0,		NULL }
  };
  
-@@ -1142,6 +1143,22 @@ mutt_pattern_exec (struct pattern_t *pat
+@@ -1151,6 +1152,22 @@
  	return (h->matched);
  #endif
        return (pat->not ^ msg_search (ctx, pat, h->msgno));

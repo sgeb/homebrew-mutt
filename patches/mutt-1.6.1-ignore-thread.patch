@@ -1,0 +1,645 @@
+diff -Naur mutt-1.6.1-orig/OPS mutt-1.6.1-patched/OPS
+--- mutt-1.6.1-orig/OPS	2016-04-30 23:07:23.000000000 +0200
++++ mutt-1.6.1-patched/OPS	2016-07-03 17:39:12.000000000 +0200
+@@ -179,3 +179,4 @@
+ OP_MAIN_SHOW_LIMIT "show currently active limit pattern"
+ OP_MAIN_COLLAPSE_THREAD "collapse/uncollapse current thread"
+ OP_MAIN_COLLAPSE_ALL "collapse/uncollapse all threads"
++OP_MAIN_IGNORE_THREAD "toggle a message's 'ignore-thread' flag"
+diff -Naur mutt-1.6.1-orig/copy.c mutt-1.6.1-patched/copy.c
+--- mutt-1.6.1-orig/copy.c	2016-04-30 23:14:03.000000000 +0200
++++ mutt-1.6.1-patched/copy.c	2016-07-03 17:39:12.000000000 +0200
+@@ -394,7 +394,7 @@
+       fputc ('\n', out);
+     }
+ 
+-    if (h->flagged || h->replied)
++    if (h->flagged || h->replied || h->ignore_thread)
+     {
+       fputs ("X-Status: ", out);
+       if (h->replied)
+@@ -405,6 +405,11 @@
+     }
+   }
+ 
++  if (h->ignore_thread)
++  {
++    fputc (M_XSTATUS_IGNORE_THREAD, out);
++  }
++
+   if (flags & CH_UPDATE_LEN &&
+       (flags & CH_NOLEN) == 0)
+   {
+diff -Naur mutt-1.6.1-orig/curs_main.c mutt-1.6.1-patched/curs_main.c
+--- mutt-1.6.1-orig/curs_main.c	2016-04-30 23:14:03.000000000 +0200
++++ mutt-1.6.1-patched/curs_main.c	2016-07-03 17:39:12.000000000 +0200
+@@ -397,6 +397,7 @@
+   mutt_sort_headers (ctx, (check == M_REOPENED));
+ 
+   /* uncollapse threads with new mail */
++  /* let threads collapsed if they have the ignore-thread flag */
+   if ((Sort & SORT_MASK) == SORT_THREADS)
+   {
+     if (check == M_REOPENED)
+@@ -409,7 +410,8 @@
+       {
+ 	for (j = h; !j->message; j = j->child)
+ 	  ;
+-	mutt_uncollapse_thread (ctx, j->message);
++	if (!(j->message)->ignore_thread)
++	  mutt_uncollapse_thread (ctx, j->message);
+       }
+       mutt_set_virtual (ctx);
+     }
+@@ -422,7 +424,8 @@
+ 	for (k = 0; k < ctx->msgcount; k++)
+ 	{
+ 	  HEADER *h = ctx->hdrs[k];
+-	  if (h == save_new[j] && (!ctx->pattern || h->limited))
++	  if (h == save_new[j] && (!ctx->pattern || h->limited) &&
++	  !h->ignore_thread)
+ 	    mutt_uncollapse_thread (ctx, h);
+ 	}
+       }
+@@ -496,6 +499,7 @@
+ {
+   char buf[LONG_STRING], helpstr[LONG_STRING];
+   int op = OP_NULL;
++  int prev_op = OP_NULL;
+   int done = 0;                /* controls when to exit the "event" loop */
+   int i = 0, j;
+   int tag = 0;                 /* has the tag-prefix command been pressed? */
+@@ -1269,13 +1273,15 @@
+ 
+ 	unset_option (OPTNEEDRESORT);
+ 
+-	if ((Sort & SORT_MASK) == SORT_THREADS && CURHDR->collapsed)
++	if ((Sort & SORT_MASK) == SORT_THREADS && CURHDR->collapsed &&
++	    !CURHDR->ignore_thread && prev_op != OP_MAIN_COLLAPSE_THREAD)
+ 	{
+ 	  mutt_uncollapse_thread (Context, CURHDR);
+ 	  mutt_set_virtual (Context);
+ 	  if (option (OPTUNCOLLAPSEJUMP))
+ 	    menu->current = mutt_thread_next_unread (Context, CURHDR);
+ 	}
++	prev_op = OP_NULL;
+ 
+ 	if (option (OPTPGPAUTODEC) && (tag || !(CURHDR->security & PGP_TRADITIONAL_CHECKED)))
+ 	  mutt_check_traditional_pgp (tag ? NULL : CURHDR, &menu->redraw);
+@@ -1568,10 +1574,14 @@
+ 
+ 	  if (CURHDRi->collapsed && (Sort & SORT_MASK) == SORT_THREADS)
+ 	  {
+-	    if (UNREAD (CURHDRi) && first_unread == -1)
+-	      first_unread = i;
+-	    if (UNREAD (CURHDRi) == 1 && first_new == -1)
+-	      first_new = i;
++	    /* include collapsed threads only if they dont have the ignore-thread flag */
++	    if (!CURHDRi->ignore_thread)
++	    {
++	      if (UNREAD (CURHDRi) && first_unread == -1)
++		first_unread = i;
++	      if (UNREAD (CURHDRi) == 1 && first_new == -1)
++		first_new = i;
++	    }
+ 	  }
+ 	  else if ((!CURHDRi->deleted && !CURHDRi->read))
+ 	  {
+@@ -1834,6 +1844,51 @@
+ 	  break;
+ 	}
+ 
++	if (menu->menu == MENU_PAGER)
++	{
++	  prev_op = op;
++	  op = OP_DISPLAY_MESSAGE;
++	  continue;
++	}
++
++	menu->redraw = REDRAW_INDEX | REDRAW_STATUS;
++
++       break;
++
++      case OP_MAIN_IGNORE_THREAD:
++	CHECK_MSGCOUNT;
++        CHECK_VISIBLE;
++	CHECK_READONLY;
++
++        if ((Sort & SORT_MASK) != SORT_THREADS)
++        {
++	  mutt_error _("Threading is not enabled.");
++	  break;
++	}
++      
++	if (CURHDR->ignore_thread)
++	{
++	  mutt_unignore_thread (Context, CURHDR);
++          if (CURHDR->collapsed) 
++ 	    menu->current = mutt_uncollapse_thread (Context, CURHDR);
++	  mutt_set_virtual (Context);
++	  if (option (OPTUNCOLLAPSEJUMP))
++	    menu->current = mutt_thread_next_unread (Context, CURHDR);
++	}
++	else 
++	{
++	  mutt_ignore_thread (Context, CURHDR);
++          if (!CURHDR->collapsed)
++	    menu->current = mutt_collapse_thread (Context, CURHDR);
++	  mutt_set_virtual (Context);
++	}
++
++	if (menu->menu == MENU_PAGER)
++	{
++	  op = OP_DISPLAY_MESSAGE;
++	  continue;
++	}
++
+ 	menu->redraw = REDRAW_INDEX | REDRAW_STATUS;
+ 
+        break;
+@@ -1848,6 +1903,12 @@
+ 	  break;
+ 	}
+ 
++        if (CURHDR->ignore_thread)
++        {
++	  mutt_error _("'un/collapse-all' cannot start from a ignored thread.");
++	  break;
++	}
++
+         {
+ 	  HEADER *h, *base;
+ 	  THREAD *thread, *top;
+@@ -1873,7 +1934,10 @@
+ 	    if (h->collapsed != Context->collapsed)
+ 	    {
+ 	      if (h->collapsed)
+-		mutt_uncollapse_thread (Context, h);
++	      {
++		if (!h->ignore_thread)
++		  mutt_uncollapse_thread (Context, h);
++	      }
+ 	      else if (option (OPTCOLLAPSEUNREAD) || !UNREAD (h))
+ 		mutt_collapse_thread (Context, h);
+ 	    }
+diff -Naur mutt-1.6.1-orig/flags.c mutt-1.6.1-patched/flags.c
+--- mutt-1.6.1-orig/flags.c	2016-04-30 23:14:03.000000000 +0200
++++ mutt-1.6.1-patched/flags.c	2016-07-03 17:39:12.000000000 +0200
+@@ -252,6 +252,30 @@
+ 	if (upd_ctx) ctx->tagged--;
+       }
+       break;
++
++    case M_IGNORE_THREAD:
++
++      if (!mutt_bit_isset(ctx->rights,M_ACL_WRITE))
++        return;
++
++      if (bf)
++      {
++	if (!h->ignore_thread)
++	{
++	  h->ignore_thread = 1;
++	  h->changed = 1;
++	  if (upd_ctx) ctx->changed = 1;
++	  update = 1;
++	}
++      }
++      else if (h->ignore_thread)
++      {
++        update = 1;
++	h->ignore_thread = 0;
++	h->changed = 1;
++	if (upd_ctx) ctx->changed = 1;
++      }
++      break;
+   }
+ 
+   if (update)
+diff -Naur mutt-1.6.1-orig/functions.h mutt-1.6.1-patched/functions.h
+--- mutt-1.6.1-orig/functions.h	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/functions.h	2016-07-03 17:39:12.000000000 +0200
+@@ -167,6 +167,7 @@
+   { "mail-key",			OP_MAIL_KEY,			"\033k" },
+   { "decrypt-copy",		OP_DECRYPT_COPY,		NULL },
+   { "decrypt-save",		OP_DECRYPT_SAVE,		NULL },
++  { "ignore-thread",		OP_MAIN_IGNORE_THREAD,		NULL },
+ 
+ 
+   { NULL,			0,				NULL }
+@@ -213,6 +214,8 @@
+   { "print-message",	OP_PRINT,			"p" },
+   { "previous-thread",	OP_MAIN_PREV_THREAD,		"\020" },
+   { "previous-subthread",OP_MAIN_PREV_SUBTHREAD,	"\033p" },
++  { "collapse-thread",	OP_MAIN_COLLAPSE_THREAD,	"\033v" },
++  { "ignore-thread",	OP_MAIN_IGNORE_THREAD,		NULL },
+   { "quit",		OP_QUIT,			"Q" },
+   { "exit",		OP_EXIT,			"q" },
+   { "reply",		OP_REPLY,			"r" },
+diff -Naur mutt-1.6.1-orig/hdrline.c mutt-1.6.1-patched/hdrline.c
+--- mutt-1.6.1-orig/hdrline.c	2016-04-30 23:14:03.000000000 +0200
++++ mutt-1.6.1-patched/hdrline.c	2016-07-03 17:39:12.000000000 +0200
+@@ -254,6 +254,8 @@
+   int is_index = (flags & M_FORMAT_INDEX);
+ #define THREAD_NEW (threads && hdr->collapsed && hdr->num_hidden > 1 && mutt_thread_contains_unread (ctx, hdr) == 1)
+ #define THREAD_OLD (threads && hdr->collapsed && hdr->num_hidden > 1 && mutt_thread_contains_unread (ctx, hdr) == 2)
++#define THREAD_IGNORE_NEW (THREAD_NEW && hdr->ignore_thread)
++#define THREAD_IGNORE_UNREAD (THREAD_OLD && hdr->ignore_thread)
+   size_t len;
+ 
+   hdr = hfi->hdr;
+@@ -592,6 +594,11 @@
+ 	ch = '*';
+       else if (hdr->flagged)
+ 	ch = '!';
++      else if (hdr->ignore_thread)
++        if (hdr->read)
++	  ch = 'i';
++	else
++	  ch = 'I';
+       else if (hdr->replied)
+ 	ch = 'r';
+       else if (hdr->read && (ctx && ctx->msgnotreadyet != hdr->msgno))
+@@ -669,9 +676,12 @@
+         ch = 'K';
+ 
+       snprintf (buf2, sizeof (buf2),
+-		"%c%c%c", (THREAD_NEW ? 'n' : (THREAD_OLD ? 'o' : 
++		"%c%c%c", ((THREAD_IGNORE_NEW || THREAD_IGNORE_UNREAD ||
++		(threads && hdr->ignore_thread && !hdr->read)) ? 'I' :
++		(threads && hdr->ignore_thread ? 'i' : (
++		THREAD_NEW ? 'n' : (THREAD_OLD ? 'o' :
+ 		((hdr->read && (ctx && ctx->msgnotreadyet != hdr->msgno))
+-		? (hdr->replied ? 'r' : ' ') : (hdr->old ? 'O' : 'N')))),
++		? (hdr->replied ? 'r' : ' ') : (hdr->old ? 'O' : 'N')))))),
+ 		hdr->deleted ? 'D' : (hdr->attach_del ? 'd' : ch),
+ 		hdr->tagged ? '*' :
+ 		(hdr->flagged ? '!' :
+@@ -742,6 +752,8 @@
+   return (src);
+ #undef THREAD_NEW
+ #undef THREAD_OLD
++#undef THREAD_IGNORE_NEW
++#undef THREAD_IGNORE_UNREAD
+ }
+ 
+ void
+diff -Naur mutt-1.6.1-orig/imap/imap.c mutt-1.6.1-patched/imap/imap.c
+--- mutt-1.6.1-orig/imap/imap.c	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/imap/imap.c	2016-07-03 17:42:44.000000000 +0200
+@@ -892,6 +892,9 @@
+           if (hdrs[n]->flagged != HEADER_DATA(hdrs[n])->flagged)
+             match = invert ^ hdrs[n]->flagged;
+ 	  break;
++	case M_IGNORE_THREAD:
++	  if (hdrs[n]->ignore_thread != HEADER_DATA(hdrs[n])->ignore_thread)
++	    match = invert ^ hdrs[n]->ignore_thread;
+         case M_OLD:
+           if (hdrs[n]->old != HEADER_DATA(hdrs[n])->old)
+             match = invert ^ hdrs[n]->old;
+@@ -1034,6 +1037,8 @@
+     return 1;
+   if (h->deleted != hd->deleted)
+     return 1;
++  if (h->ignore_thread != hd->ignore_thread)
++      return 1;
+ 
+   return 0;
+ }
+@@ -1066,6 +1071,8 @@
+                  "Old ", flags, sizeof (flags));
+   imap_set_flag (idata, M_ACL_WRITE, hdr->flagged,
+ 		 "\\Flagged ", flags, sizeof (flags));
++  imap_set_flag (idata, M_ACL_WRITE, hdr->ignore_thread,
++                 "ignoreThread ", flags, sizeof (flags));
+   imap_set_flag (idata, M_ACL_WRITE, hdr->replied,
+ 		 "\\Answered ", flags, sizeof (flags));
+   imap_set_flag (idata, M_ACL_DELETE, hdr->deleted,
+@@ -1084,6 +1091,8 @@
+     imap_set_flag (idata, M_ACL_SEEN, 1, "\\Seen ", flags, sizeof (flags));
+     imap_set_flag (idata, M_ACL_WRITE, 1, "Old ", flags, sizeof (flags));
+     imap_set_flag (idata, M_ACL_WRITE, 1, "\\Flagged ", flags, sizeof (flags));
++    imap_set_flag (idata, M_ACL_WRITE, 1, "ignoreThread ", flags, sizeof
++    (flags));
+     imap_set_flag (idata, M_ACL_WRITE, 1, "\\Answered ", flags, sizeof (flags));
+     imap_set_flag (idata, M_ACL_DELETE, 1, "\\Deleted ", flags, sizeof (flags));
+ 
+@@ -1262,6 +1271,8 @@
+     rc |= sync_helper (idata, M_ACL_SEEN, M_READ, "\\Seen");
+   if (rc >= 0)
+     rc |= sync_helper (idata, M_ACL_WRITE, M_REPLIED, "\\Answered");
++  if (rc >= 0)
++    rc |= sync_helper (idata, M_ACL_WRITE, M_IGNORE_THREAD, "ignoreThread");
+ 
+   if (oldsort != Sort)
+   {
+diff -Naur mutt-1.6.1-orig/imap/message.c mutt-1.6.1-patched/imap/message.c
+--- mutt-1.6.1-orig/imap/message.c	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/imap/message.c	2016-07-03 17:39:12.000000000 +0200
+@@ -197,6 +197,7 @@
+           ctx->hdrs[idx]->old = h.data->old;
+           ctx->hdrs[idx]->deleted = h.data->deleted;
+           ctx->hdrs[idx]->flagged = h.data->flagged;
++	  ctx->hdrs[idx]->ignore_thread = h.data->ignore_thread;
+           ctx->hdrs[idx]->replied = h.data->replied;
+           ctx->hdrs[idx]->changed = h.data->changed;
+           /*  ctx->hdrs[msgno]->received is restored from mutt_hcache_restore */
+@@ -308,6 +309,7 @@
+       ctx->hdrs[idx]->old = h.data->old;
+       ctx->hdrs[idx]->deleted = h.data->deleted;
+       ctx->hdrs[idx]->flagged = h.data->flagged;
++      ctx->hdrs[idx]->ignore_thread = h.data->ignore_thread;
+       ctx->hdrs[idx]->replied = h.data->replied;
+       ctx->hdrs[idx]->changed = h.data->changed;
+       ctx->hdrs[idx]->received = h.received;
+@@ -1064,6 +1066,7 @@
+   mutt_set_flag (ctx, h, M_READ, hd->read);
+   mutt_set_flag (ctx, h, M_DELETE, hd->deleted);
+   mutt_set_flag (ctx, h, M_FLAG, hd->flagged);
++  mutt_set_flag (ctx, h, M_IGNORE_THREAD, hd->ignore_thread);
+   mutt_set_flag (ctx, h, M_REPLIED, hd->replied);
+ 
+   /* this message is now definitively *not* changed (mutt_set_flag
+@@ -1233,7 +1236,7 @@
+   s++;
+ 
+   mutt_free_list (&hd->keywords);
+-  hd->deleted = hd->flagged = hd->replied = hd->read = hd->old = 0;
++  hd->deleted = hd->flagged = hd->replied = hd->read = hd->old = hd->ignore_thread = 0;
+ 
+   /* start parsing */
+   while (*s && *s != ')')
+@@ -1248,6 +1251,11 @@
+       s += 8;
+       hd->flagged = 1;
+     }
++    else if (ascii_strncasecmp ("ignorethread", s, 12) == 0)
++    {
++      s += 12;
++      hd->ignore_thread = 1;
++    }
+     else if (ascii_strncasecmp ("\\answered", s, 9) == 0)
+     {
+       s += 9;
+diff -Naur mutt-1.6.1-orig/imap/message.h mutt-1.6.1-patched/imap/message.h
+--- mutt-1.6.1-orig/imap/message.h	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/imap/message.h	2016-07-03 17:39:12.000000000 +0200
+@@ -33,6 +33,7 @@
+   unsigned int flagged : 1;
+   unsigned int replied : 1;
+   unsigned int changed : 1;
++  unsigned int ignore_thread : 1;
+ 
+   unsigned int parsed : 1;
+ 
+diff -Naur mutt-1.6.1-orig/mailbox.h mutt-1.6.1-patched/mailbox.h
+--- mutt-1.6.1-orig/mailbox.h	2016-04-30 23:07:23.000000000 +0200
++++ mutt-1.6.1-patched/mailbox.h	2016-07-03 17:39:12.000000000 +0200
+@@ -28,6 +28,9 @@
+ 				* safe_fopen() for mbox-style folders.
+ 				*/
+ 
++#define M_XSTATUS_IGNORE_THREAD  'I'  /* char for saving ignore-thread to X-Status */
++
++
+ /* mx_open_new_message() */
+ #define M_ADD_FROM	(1<<0)	/* add a From_ line */
+ #define M_SET_DRAFT	(1<<1)	/* set the message draft flag */
+diff -Naur mutt-1.6.1-orig/mbox.c mutt-1.6.1-patched/mbox.c
+--- mutt-1.6.1-orig/mbox.c	2016-04-30 23:07:23.000000000 +0200
++++ mutt-1.6.1-patched/mbox.c	2016-07-03 17:39:12.000000000 +0200
+@@ -1223,6 +1223,7 @@
+ 	   */
+ 	  mutt_set_flag (ctx, ctx->hdrs[i], M_FLAG, old_hdrs[j]->flagged);
+ 	  mutt_set_flag (ctx, ctx->hdrs[i], M_REPLIED, old_hdrs[j]->replied);
++	  mutt_set_flag (ctx, ctx->hdrs[i], M_IGNORE_THREAD, old_hdrs[j]->ignore_thread);
+ 	  mutt_set_flag (ctx, ctx->hdrs[i], M_OLD, old_hdrs[j]->old);
+ 	  mutt_set_flag (ctx, ctx->hdrs[i], M_READ, old_hdrs[j]->read);
+ 	}
+diff -Naur mutt-1.6.1-orig/mutt.h mutt-1.6.1-patched/mutt.h
+--- mutt-1.6.1-orig/mutt.h	2016-04-30 23:07:23.000000000 +0200
++++ mutt-1.6.1-patched/mutt.h	2016-07-03 17:39:12.000000000 +0200
+@@ -163,6 +163,9 @@
+ #define M_THREAD_GET_HIDDEN	(1<<2)
+ #define M_THREAD_UNREAD		(1<<3)
+ #define M_THREAD_NEXT_UNREAD	(1<<4)
++#define M_THREAD_IGNORE  	(1<<5)
++#define M_THREAD_UNIGNORE  	(1<<6)
++
+ 
+ enum
+ {
+@@ -188,6 +191,7 @@
+   M_LIMIT,
+   M_EXPIRED,
+   M_SUPERSEDED,
++  M_IGNORE_THREAD,
+ 
+   /* actions for mutt_pattern_comp/mutt_pattern_exec */
+   M_AND,
+@@ -752,6 +756,7 @@
+   /* the following are used to support collapsing threads  */
+   unsigned int collapsed : 1; 	/* is this message part of a collapsed thread? */
+   unsigned int limited : 1;   	/* is this message in a limited view?  */
++  unsigned int ignore_thread : 1;   /* is this message part of a ignored thread?  */
+   size_t num_hidden;          	/* number of hidden messages in this view */
+ 
+   short recipient;		/* user_is_recipient()'s return value, cached */
+diff -Naur mutt-1.6.1-orig/pager.c mutt-1.6.1-patched/pager.c
+--- mutt-1.6.1-orig/pager.c	2016-04-30 23:14:03.000000000 +0200
++++ mutt-1.6.1-patched/pager.c	2016-07-03 17:39:12.000000000 +0200
+@@ -2303,6 +2303,19 @@
+ 	km_error_key (MENU_PAGER);
+ 	break;
+ 
++      case OP_MAIN_COLLAPSE_THREAD:
++	CHECK_MODE(IsHeader (extra));
++	rc = OP_MAIN_COLLAPSE_THREAD;
++	ch = -1;
++	break;
++
++      case OP_MAIN_IGNORE_THREAD:
++	CHECK_MODE(IsHeader (extra));
++	CHECK_READONLY;
++	rc = OP_MAIN_IGNORE_THREAD;
++	ch = -1;
++	break;
++
+ 	/* --------------------------------------------------------------------
+ 	 * The following are operations on the current message rather than
+ 	 * adjusting the view of the message.
+diff -Naur mutt-1.6.1-orig/parse.c mutt-1.6.1-patched/parse.c
+--- mutt-1.6.1-orig/parse.c	2016-04-30 23:07:24.000000000 +0200
++++ mutt-1.6.1-patched/parse.c	2016-07-03 17:39:12.000000000 +0200
+@@ -1257,6 +1257,9 @@
+ 	    case 'F':
+ 	    hdr->flagged = 1;
+ 	    break;
++	    case M_XSTATUS_IGNORE_THREAD:
++	    hdr->ignore_thread = 1;
++	    break;
+ 	    default:
+ 	    break;
+ 	  }
+diff -Naur mutt-1.6.1-orig/protos.h mutt-1.6.1-patched/protos.h
+--- mutt-1.6.1-orig/protos.h	2016-04-30 23:14:03.000000000 +0200
++++ mutt-1.6.1-patched/protos.h	2016-07-03 17:39:12.000000000 +0200
+@@ -63,6 +63,8 @@
+ #define mutt_get_hidden(x,y)_mutt_traverse_thread (x,y,M_THREAD_GET_HIDDEN) 
+ #define mutt_thread_contains_unread(x,y) _mutt_traverse_thread (x,y,M_THREAD_UNREAD)
+ #define mutt_thread_next_unread(x,y) _mutt_traverse_thread(x,y,M_THREAD_NEXT_UNREAD)
++#define mutt_ignore_thread(x,y) _mutt_traverse_thread (x,y,M_THREAD_IGNORE)
++#define mutt_unignore_thread(x,y) _mutt_traverse_thread (x,y,M_THREAD_UNIGNORE)
+ int _mutt_traverse_thread (CONTEXT *ctx, HEADER *hdr, int flag);
+ 
+ 
+diff -Naur mutt-1.6.1-orig/sort.c mutt-1.6.1-patched/sort.c
+--- mutt-1.6.1-orig/sort.c	2016-04-30 23:07:25.000000000 +0200
++++ mutt-1.6.1-patched/sort.c	2016-07-03 17:39:12.000000000 +0200
+@@ -321,6 +321,7 @@
+   }
+ 
+   /* re-collapse threads marked as collapsed */
++  /* and threads marked for ignoring if it is a "init-sort" */
+   if ((Sort & SORT_MASK) == SORT_THREADS)
+   {
+     top = ctx->tree;
+@@ -330,7 +331,7 @@
+ 	thread = thread->child;
+       h = thread->message;
+ 
+-      if (h->collapsed)
++      if (h->collapsed || (h->ignore_thread && init))
+ 	mutt_collapse_thread (ctx, h);
+       top = top->next;
+     }
+diff -Naur mutt-1.6.1-orig/thread.c mutt-1.6.1-patched/thread.c
+--- mutt-1.6.1-orig/thread.c	2016-04-30 23:07:25.000000000 +0200
++++ mutt-1.6.1-patched/thread.c	2016-07-03 17:39:12.000000000 +0200
+@@ -116,6 +116,69 @@
+   }
+ }
+ 
++/* check if all messages in a ignored thread have the ignore-tread status */
++static void mutt_check_ignore_thread (CONTEXT *ctx)
++{
++  THREAD *thread, *top;
++  HEADER *roothdr;
++  int ignore_thread, missing_count;
++      
++  thread = ctx->tree; 
++  while (thread)
++  {
++    ignore_thread = 0;
++    missing_count = 0;
++    roothdr = NULL;
++
++    top = thread;
++    while (!thread->message)
++      thread = thread->child;
++ 
++    FOREVER
++    {
++      if (thread->message)
++      {
++	if (!roothdr)
++	  roothdr = thread->message;
++
++	if ((thread->message)->ignore_thread)
++	  ignore_thread = 1;
++	else
++	  missing_count++;
++      }
++
++      if (thread->child)
++	thread = thread->child;
++      else if (thread == top)
++	break;
++      else if (thread->next)
++	thread = thread->next;
++      else
++      {
++	int done = 0;
++	while (!thread->next)
++	{
++	  thread = thread->parent;
++	  if (thread == top)
++	  {
++	    done = 1;
++	    break;
++	  }
++	}
++	if (done)
++	  break;
++	thread = thread->next;
++      }
++    }
++    if (ignore_thread && missing_count)
++    {
++      mutt_ignore_thread(ctx, roothdr);
++    }
++    thread = thread->next;
++  }
++}
++
++
+ /* this calculates whether a node is the root of a subtree that has visible
+  * nodes, whether a node itself is visible, whether, if invisible, it has
+  * depth anyway, and whether any of its later siblings are roots of visible
+@@ -970,6 +1033,10 @@
+ 
+     /* Draw the thread tree. */
+     mutt_draw_tree (ctx);
++ 
++    /* check if all messages in a ignored tree have the ignore-thread status */
++    mutt_check_ignore_thread(ctx);
++ 
+   }
+ }
+ 
+@@ -1177,6 +1244,13 @@
+     }
+   }
+ 
++  if (flag & (M_THREAD_IGNORE | M_THREAD_UNIGNORE))
++  {
++    cur->pair = 0; /* force index entry's color to be re-evaluated */
++    mutt_set_flag (ctx, cur, M_IGNORE_THREAD, flag & M_THREAD_IGNORE);
++  }
++
++
+   if (thread == top && (thread = thread->child) == NULL)
+   {
+     /* return value depends on action requested */
+@@ -1188,6 +1262,8 @@
+       return (num_hidden);
+     else if (flag & M_THREAD_NEXT_UNREAD)
+       return (min_unread);
++    else if (flag & (M_THREAD_IGNORE | M_THREAD_UNIGNORE))
++      return (1);
+   }
+   
+   FOREVER
+@@ -1226,6 +1302,13 @@
+       }
+ 
+ 
++      if (flag & (M_THREAD_IGNORE | M_THREAD_UNIGNORE))
++      {
++	cur->pair = 0; /* force index entry's color to be re-evaluated */
++	mutt_set_flag (ctx, cur, M_IGNORE_THREAD, flag & M_THREAD_IGNORE);
++      }
++
++
+       if (!cur->read && CHECK_LIMIT)
+       {
+ 	if (cur->old)
+@@ -1274,6 +1357,8 @@
+     return (num_hidden+1);
+   else if (flag & M_THREAD_NEXT_UNREAD)
+     return (min_unread);
++  else if (flag & (M_THREAD_IGNORE | M_THREAD_UNIGNORE))
++    return (1);
+ 
+   return (0);
+ #undef CHECK_LIMIT
