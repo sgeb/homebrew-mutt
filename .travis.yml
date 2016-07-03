@@ -1,0 +1,23 @@
+# to run on macosx
+language: objective-c
+
+before_install:
+  - brew update
+
+install:
+  - mkdir -p $(brew --repo)/Library/Taps/sgeb-travis
+  - ln -s $PWD $(brew --repo)/Library/Taps/sgeb-travis/
+  - brew tap --repair
+
+env:
+  - PATCH=trash
+  - PATCH=ignore-thread
+  - PATCH=pgp-verbose-mime
+  - PATCH=sidebar
+  - PATCH=gmail-server-search
+  - PATCH=gmail-labels
+
+script:
+  - brew audit sgeb-travis/mutt/mutt
+  - brew install -v sgeb-travis/mutt/mutt --with-$PATCH-patch
+  - brew test sgeb-travis/mutt/mutt
