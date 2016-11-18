@@ -29,7 +29,7 @@ class Mutt < Formula
   option "with-sidebar-patch", "Apply sidebar patch"
   option "with-gmail-server-search-patch", "Apply gmail server search patch"
   option "with-gmail-labels-patch", "Apply gmail labels patch"
-  option "with-forwref-patch", "Apply forwref patch"
+  option "with-forwref-patch", "Apply forward_references patch"
   # end - customizations for sgeb/mutt
 
   depends_on "autoconf" => :build
@@ -89,8 +89,8 @@ class Mutt < Formula
 
   if build.with? "gmail-server-search-patch"
     patch do
-      url "https://raw.githubusercontent.com/sgeb/homebrew-mutt/master/patches/mutt-1.6.1-gmailcustomsearch.patch"
-      sha256 "79844d521eb9d426cff4be44cc4a09575f3efa257019fb27aa3275a7389e9279"
+      url "https://raw.githubusercontent.com/sgeb/homebrew-mutt/master/patches/mutt-1.7.1-gmailcustomsearch.patch"
+      sha256 "37b43e0bc083045e243d8b619287e8677135697d40f208844269161836226749"
     end
   end
 
