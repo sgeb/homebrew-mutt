@@ -26,6 +26,13 @@ Some of the additional patches (refer to [formula](https://github.com/sgeb/homeb
   and 'Starred' are stripped from the list of labels. Note that Gmail Labels
   only work when directly connected to Gmail via IMAP.
 
+- [Forward
+  References](https://raw.githubusercontent.com/sgeb/homebrew-mutt/master/patches/mutt-1.7.1-forwref.sgeb.patch):
+  enable with `--with-forwref-patch`. When set, forwarded messages set the
+  `In-Reply-To:` and `References:` headers in the same way as normal replies
+  would. It effectively includes forwarded messages as part of the original
+  thread.
+
 ## How to install
 
 If you had previously installed the default homebrew mutt, you must uninstall
@@ -50,6 +57,8 @@ Then proceed with installation based on custom formula:
         Apply confirm attachment patch
 --with-debug
         Build with debug option enabled
+--with-forwref-patch
+        Apply forward_references patch
 --with-gmail-labels-patch
         Apply gmail labels patch
 --with-gmail-server-search-patch
@@ -71,7 +80,7 @@ Then proceed with installation based on custom formula:
 
 > brew install sgeb/mutt/mutt --with-trash-patch \
   --with-sidebar-patch --with-gmail-server-search-patch \
-  --with-gmail-labels-patch
+  --with-gmail-labels-patch --with-forwref-patch
 # Compile and install customized mutt.
 # This is an example, refer to the command above to see the
 # available options.

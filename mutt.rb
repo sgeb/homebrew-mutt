@@ -3,9 +3,9 @@ require 'formula'
 class Mutt < Formula
   desc "Mongrel of mail user agents (part elm, pine, mush, mh, etc.)"
   homepage 'http://www.mutt.org/'
-  url "https://bitbucket.org/mutt/mutt/downloads/mutt-1.6.1.tar.gz"
-  mirror "ftp://ftp.mutt.org/pub/mutt/mutt-1.6.1.tar.gz"
-  sha256 "98b26cecc6b1713082fc880344fa345c20bd7ded6459abe18c84429c7cf8ed20"
+  url "https://bitbucket.org/mutt/mutt/downloads/mutt-1.7.1.tar.gz"
+  mirror "ftp://ftp.mutt.org/pub/mutt/mutt-1.7.1.tar.gz"
+  sha256 "e9c6f88e83d48690033f0d862a70293ac746286b77241554f5448bc23bd0d6df"
 
   head do
     url 'https://dev.mutt.org/hg/mutt#default', :using => :hg
@@ -29,6 +29,7 @@ class Mutt < Formula
   option "with-sidebar-patch", "Apply sidebar patch"
   option "with-gmail-server-search-patch", "Apply gmail server search patch"
   option "with-gmail-labels-patch", "Apply gmail labels patch"
+  option "with-forwref-patch", "Apply forwref patch"
   # end - customizations for sgeb/mutt
 
   depends_on "autoconf" => :build
@@ -97,6 +98,13 @@ class Mutt < Formula
     patch do
       url "https://raw.githubusercontent.com/sgeb/homebrew-mutt/master/patches/mutt-1.5.23-gmail-labels.sgeb.v1.patch"
       sha256 "2b80584e0e799d798f250f6559d6f9bb517ac4a7c47e739318eb8263c8f67a7c"
+    end
+  end
+
+  if build.with? "gmail-forwref-patch"
+    patch do
+      url "https://raw.githubusercontent.com/sgeb/homebrew-mutt/master/patches/mutt-1.7.1-forwref.sgeb.patch"
+      sha256 "b731ac9859befbf83bc902d909b722f3c8a2b17cd5200982b5479c364b4942b8"
     end
   end
 

@@ -16,6 +16,7 @@ env:
   - PATCH=sidebar
   - PATCH=gmail-server-search
   - PATCH=gmail-labels
+  - PATCH=forwref
 
 script:
   - brew audit sgeb-travis/mutt/mutt
