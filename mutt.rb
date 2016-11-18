@@ -3,9 +3,9 @@ require 'formula'
 class Mutt < Formula
   desc "Mongrel of mail user agents (part elm, pine, mush, mh, etc.)"
   homepage 'http://www.mutt.org/'
-  url "https://bitbucket.org/mutt/mutt/downloads/mutt-1.7.1.tar.gz"
-  mirror "ftp://ftp.mutt.org/pub/mutt/mutt-1.7.1.tar.gz"
-  sha256 "e9c6f88e83d48690033f0d862a70293ac746286b77241554f5448bc23bd0d6df"
+  url "https://bitbucket.org/mutt/mutt/downloads/mutt-1.6.1.tar.gz"
+  mirror "ftp://ftp.mutt.org/pub/mutt/mutt-1.6.1.tar.gz"
+  sha256 "98b26cecc6b1713082fc880344fa345c20bd7ded6459abe18c84429c7cf8ed20"
 
   head do
     url 'https://dev.mutt.org/hg/mutt#default', :using => :hg
@@ -89,8 +89,8 @@ class Mutt < Formula
 
   if build.with? "gmail-server-search-patch"
     patch do
-      url "https://raw.githubusercontent.com/sgeb/homebrew-mutt/master/patches/mutt-1.7.1-gmailcustomsearch.patch"
-      sha256 "37b43e0bc083045e243d8b619287e8677135697d40f208844269161836226749"
+      url "https://raw.githubusercontent.com/sgeb/homebrew-mutt/master/patches/mutt-1.6.1-gmailcustomsearch.patch"
+      sha256 "79844d521eb9d426cff4be44cc4a09575f3efa257019fb27aa3275a7389e9279"
     end
   end
 
