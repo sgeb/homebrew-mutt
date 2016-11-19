@@ -104,7 +104,7 @@ class Mutt < Formula
   if build.with? "gmail-forwref-patch"
     patch do
       url "https://raw.githubusercontent.com/sgeb/homebrew-mutt/master/patches/mutt-1.7.1-forwref.sgeb.patch"
-      sha256 "b731ac9859befbf83bc902d909b722f3c8a2b17cd5200982b5479c364b4942b8"
+      sha256 "86e3c31b617a016b7f78c0796ea32fa05f0e25fe110d1b05f45a7094c0300b9d"
     end
   end
 
