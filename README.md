@@ -28,10 +28,12 @@ Some of the additional patches (refer to [formula](https://github.com/sgeb/homeb
 
 - [Forward
   References](https://raw.githubusercontent.com/sgeb/homebrew-mutt/master/patches/mutt-1.7.1-forwref.sgeb.patch):
-  enable with `--with-forwref-patch`. When set, forwarded messages set the
-  `In-Reply-To:` and `References:` headers in the same way as normal replies
-  would. It effectively includes forwarded messages as part of the original
-  thread.
+  enable with `--with-forwref-patch`. By default a forwarded message does not
+  reference the messages it contains. This commit introduces a new boolean
+  option `$forward_references`. When it is set, a forwarded message includes the
+  `In-Reply-To:` and `References:` headers, just like a reply would. Hence the
+  forwarded message becomes part of the original thread instead of starting a
+  new one.
 
 ## How to install
 
